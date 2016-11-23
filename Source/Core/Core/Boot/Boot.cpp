@@ -161,10 +161,8 @@ bool CBoot::LoadMapFromFilename()
   return false;
 }
 
-// If ipl.bin is not found, this function does *some* of what BS1 does:
-// loading IPL(BS2) and jumping to it.
-// It does not initialize the hardware or anything else like BS1 does.
-bool CBoot::Load_BS2(const std::string& _rBootROMFilename)
+// Load BS1, it will then load BS2.
+bool CBoot::Load_BS1(const std::string& _rBootROMFilename)
 {
   // CRC32
   const u32 USA_v1_0 =
@@ -215,33 +213,12 @@ bool CBoot::Load_BS2(const std::string& _rBootROMFilename)
     PanicAlertT("%s IPL found in %s directory. The disc might not be recognized",
                 ipl_region.c_str(), BootRegion.c_str());
 
-  // Run the descrambler over the encrypted section containing BS1/BS2
-  CEXIIPL::Descrambler((u8*)data.data() + 0x100, 0x1AFE00);
+  // Run the descrambler over the encrypted section containing BS1
+  CEXIIPL::Descrambler((u8*)data.data() + 0x100, 0x700);
 
-  // TODO: Execution is supposed to start at 0xFFF00000, not 0x81200000;
-  // copying the initial boot code to 0x81200000 is a hack.
-  // For now, HLE the first few instructions and start at 0x81200150
-  // to work around this.
-  Memory::CopyToEmu(0x01200000, data.data() + 0x100, 0x700);
-  Memory::CopyToEmu(0x01300000, data.data() + 0x820, 0x1AFE00);
-  PowerPC::ppcState.gpr[3] = 0xfff0001f;
-  PowerPC::ppcState.gpr[4] = 0x00002030;
-  PowerPC::ppcState.gpr[5] = 0x0000009c;
-  PowerPC::ppcState.msr = 0x00002030;
-  PowerPC::ppcState.spr[SPR_HID0] = 0x0011c464;
-  PowerPC::ppcState.spr[SPR_IBAT0U] = 0x80001fff;
-  PowerPC::ppcState.spr[SPR_IBAT0L] = 0x00000002;
-  PowerPC::ppcState.spr[SPR_IBAT3U] = 0xfff0001f;
-  PowerPC::ppcState.spr[SPR_IBAT3L] = 0xfff00001;
-  PowerPC::ppcState.spr[SPR_DBAT0U] = 0x80001fff;
-  PowerPC::ppcState.spr[SPR_DBAT0L] = 0x00000002;
-  PowerPC::ppcState.spr[SPR_DBAT1U] = 0xc0001fff;
-  PowerPC::ppcState.spr[SPR_DBAT1L] = 0x0000002a;
-  PowerPC::ppcState.spr[SPR_DBAT3U] = 0xfff0001f;
-  PowerPC::ppcState.spr[SPR_DBAT3L] = 0xfff00001;
-  PowerPC::DBATUpdated();
-  PowerPC::IBATUpdated();
-  PC = 0x81200150;
+  // Load BS1 at the reset vector address. It will load and run BS2 via EXI.
+  Memory::CopyToEmu(0xfff00100, data.data() + 0x100, 0x700);
+  PC = 0xFFF00100;
   return true;
 }
 
@@ -291,7 +268,7 @@ bool CBoot::BootUp()
     {
       EmulatedBS2(_StartupPara.bWii);
     }
-    else if (!Load_BS2(_StartupPara.m_strBootROM))
+    else if (!Load_BS1(_StartupPara.m_strBootROM))
     {
       // If we can't load the bootrom file we HLE it instead
       EmulatedBS2(_StartupPara.bWii);
@@ -452,7 +429,7 @@ bool CBoot::BootUp()
   case SConfig::BOOT_BS2:
   {
     DVDInterface::SetDiscInside(DVDInterface::VolumeIsValid());
-    if (Load_BS2(_StartupPara.m_strBootROM))
+    if (Load_BS1(_StartupPara.m_strBootROM))
     {
       if (LoadMapFromFilename())
         HLE::PatchFunctions();

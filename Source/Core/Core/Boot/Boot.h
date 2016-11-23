@@ -54,7 +54,7 @@ private:
   static bool EmulatedBS2_GC(bool skipAppLoader = false);
   static bool EmulatedBS2_Wii();
   static bool EmulatedBS2(bool _bIsWii);
-  static bool Load_BS2(const std::string& _rBootROMFilename);
+  static bool Load_BS1(const std::string& _rBootROMFilename);
   static void Load_FST(bool _bIsWii);
 
   static bool SetupWiiMemory(DiscIO::Country country);
