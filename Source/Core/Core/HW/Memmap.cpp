@@ -81,6 +81,7 @@ static std::unique_ptr<MMIO::Mapping> InitMMIOWii()
   auto mmio = InitMMIO();
 
   WII_IPCInterface::RegisterMMIO(mmio.get(), 0x0D000000);
+  WII_IPCInterface::RegisterMMIO(mmio.get(), 0x0D800000);
   DVDInterface::RegisterMMIO(mmio.get(), 0x0D006000);
   SerialInterface::RegisterMMIO(mmio.get(), 0x0D006400);
   ExpansionInterface::RegisterMMIO(mmio.get(), 0x0D006800);
